@@ -14,8 +14,8 @@ class ArucoDetectorNode(Node):
         super().__init__('aruco_detector_node')
 
         # === ПАРАМЕТРЫ ===
-        self.declare_parameter('camera_topic', '/camera/image_raw')
-        camera_topic = self.get_parameter('camera_topic').value
+        camera_topic = '/ov5647/image_raw'
+        
 
         # === НАСТРОЙКИ ARUCO ===
         self.marker_size = 0.05  # 5 см
@@ -141,3 +141,4 @@ def main(args=None):
 
 if __name__ == "__main__":
     main()
+
