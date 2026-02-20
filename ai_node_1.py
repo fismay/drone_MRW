@@ -11,11 +11,18 @@ class DroneDetector(Node):
     def __init__(self):
         super().__init__('drone_detector_node')
         
-        # Настройки топиков
-        self.camera_topic = '/camera/image_raw' 
-        self.output_image_topic = '/drone/detection_image'
-        self.output_data_topic = '/drone/detection_data'  # Новый топик для данных
+        # 1. Объявляем параметр для входного топика камеры
+        # Это позволит менять топик при запуске, не меняя сам код
+        self.declare_parameter('input_camera_topic', '/camera/image_raw')
+        self.camera_topic = self.get_parameter('input_camera_topic').get_parameter_value().string_value
         
+        self.get_logger().info(f"Ожидаю данные с камеры в топике: {self.camera_topic}")
+
+        # Настройки выходных топиков
+        self.output_image_topic = '/drone/detection_image'
+        self.output_data_topic = '/drone/detection_data' 
+        
+        # Подписка на топик камеры
         self.subscription = self.create_subscription(
             Image,
             self.camera_topic,
@@ -37,7 +44,7 @@ class DroneDetector(Node):
 
     def image_callback(self, msg):
         try:
-            cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+            cv_image = self.bridge.imgmsg_to_cv2(msg, "passthrough")
         except Exception as e:
             self.get_logger().error(f'Ошибка конвертации: {e}')
             return
