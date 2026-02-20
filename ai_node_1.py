@@ -13,8 +13,7 @@ class DroneDetector(Node):
         
         # 1. Объявляем параметр для входного топика камеры
         # Это позволит менять топик при запуске, не меняя сам код
-        self.declare_parameter('input_camera_topic', '/camera/image_raw')
-        self.camera_topic = self.get_parameter('input_camera_topic').get_parameter_value().string_value
+        self.camera_topic = '/ov5647/image_raw'
         
         self.get_logger().info(f"Ожидаю данные с камеры в топике: {self.camera_topic}")
 
@@ -111,3 +110,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
