@@ -43,7 +43,7 @@ class DroneDetector(Node):
 
     def image_callback(self, msg):
         try:
-            cv_image = self.bridge.imgmsg_to_cv2(msg, "passthrough")
+            cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
         except Exception as e:
             self.get_logger().error(f'Ошибка конвертации: {e}')
             return
@@ -110,5 +110,6 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
 
 
