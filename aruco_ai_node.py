@@ -13,13 +13,9 @@ class ArucoDetectorNode(Node):
     def __init__(self):
         super().__init__('aruco_detector_node')
 
-        # === НАСТРОЙКИ КАМЕРЫ ===
-        self.cap = cv2.VideoCapture(1)
-        if not self.cap.isOpened():
-            self.cap = cv2.VideoCapture(0)
-            if not self.cap.isOpened():
-                self.get_logger().error("Не удалось открыть камеру!")
-                raise RuntimeError("Камера не найдена")
+        # === ПАРАМЕТРЫ ===
+        self.declare_parameter('camera_topic', '/camera/image_raw')
+        camera_topic = self.get_parameter('camera_topic').value
 
         # === НАСТРОЙКИ ARUCO ===
         self.marker_size = 0.05  # 5 см
@@ -42,20 +38,26 @@ class ArucoDetectorNode(Node):
         # === ROS 2 ИНФРАСТРУКТУРА ===
         self.bridge = CvBridge()
         
+        # Подписчик на топик камеры
+        self.subscription = self.create_subscription(
+            Image,
+            camera_topic,
+            self.image_callback,
+            10)
+        self.subscription  # keep reference
+
         # Паблишеры
         self.image_pub = self.create_publisher(Image, 'aruco/debug_image', 10)
         self.vector_pub = self.create_publisher(Point, 'aruco/vector_data', 10)
 
-        # Таймер для обработки кадров (примерно 30 FPS)
-        timer_period = 0.033  
-        self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.get_logger().info(f"Нода Aruco Detector запущена. Подписка на топик: {camera_topic}")
 
-        self.get_logger().info("Нода Aruco Detector успешно запущена. Ожидание маркеров...")
-
-    def timer_callback(self):
-        ret, frame = self.cap.read()
-        if not ret:
-            self.get_logger().warning("Не удалось получить кадр с камеры")
+    def image_callback(self, msg):
+        # Конвертация ROS Image -> OpenCV
+        try:
+            frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        except Exception as e:
+            self.get_logger().error(f"Ошибка конвертации изображения: {e}")
             return
 
         h, w = frame.shape[:2]
@@ -93,7 +95,6 @@ class ArucoDetectorNode(Node):
                     )
 
                     # === ПУБЛИКАЦИЯ В ТОПИК ===
-                    # Используем Point для передачи dx, dy и 3D дистанции
                     msg_point = Point()
                     msg_point.x = float(dx)
                     msg_point.y = float(dy)
@@ -112,17 +113,16 @@ class ArucoDetectorNode(Node):
                     cv2.putText(frame, f"ID: {ids[i][0]}", (marker_center_x, marker_center_y - 100), 
                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
 
-        # Публикуем изображение в топик ROS 2
+        # Публикуем обработанное изображение
         img_msg = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
         self.image_pub.publish(img_msg)
 
-        # Локальное окно OpenCV (можно убрать, если будешь смотреть через rqt_image_view)
+        # Локальное отображение (опционально)
         cv2.imshow('Aruco ROS2 Node', frame)
         cv2.waitKey(1)
 
     def destroy_node(self):
-        # Очищаем ресурсы при закрытии ноды
-        self.cap.release()
+        # Освобождаем ресурсы OpenCV
         cv2.destroyAllWindows()
         super().destroy_node()
 
