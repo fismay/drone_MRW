@@ -21,9 +21,12 @@ class CameraPublisher(Node):
         # '0' означает стандартную веб-камеру. Если у дрона другая камера, здесь может быть URL потока (например, 'udp://...')
         self.cap = cv2.VideoCapture(0)
         
+        
         if not self.cap.isOpened():
-            self.get_logger().error('Не удалось открыть камеру!')
-            return
+            self.cap = cv2.VideoCapture(1)
+            if not self.cap.isOpened():
+                self.get_logger().error('Не удалось открыть камеру!')
+                return
             
         self.get_logger().info('Камера успешно подключена. Начинаю трансляцию...')
         
