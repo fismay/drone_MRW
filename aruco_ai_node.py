@@ -15,7 +15,6 @@ class ArucoDetectorNode(Node):
 
         # === ПАРАМЕТРЫ ===
         camera_topic = '/ov5647/image_raw'
-        
 
         # === НАСТРОЙКИ ARUCO ===
         self.marker_size = 0.05  # 5 см
@@ -23,10 +22,10 @@ class ArucoDetectorNode(Node):
         self.parameters = aruco.DetectorParameters()
         self.detector = aruco.ArucoDetector(self.aruco_dict, self.parameters)
 
-        self.camera_matrix = np.array([[600, 0, 320], 
-                                       [0, 600, 240], 
+        self.camera_matrix = np.array([[600, 0, 320],
+                                       [0, 600, 240],
                                        [0, 0, 1]], dtype=float)
-        self.dist_coeffs = np.zeros((4,1)) 
+        self.dist_coeffs = np.zeros((4,1))
 
         self.obj_points = np.array([
             [-self.marker_size / 2,  self.marker_size / 2, 0],
@@ -37,7 +36,7 @@ class ArucoDetectorNode(Node):
 
         # === ROS 2 ИНФРАСТРУКТУРА ===
         self.bridge = CvBridge()
-        
+
         # Подписчик на топик камеры
         self.subscription = self.create_subscription(
             Image,
@@ -101,25 +100,23 @@ class ArucoDetectorNode(Node):
                     msg_point.z = float(distance_3d)
                     self.vector_pub.publish(msg_point)
 
-                    # Визуализация
+                    # Визуализация на изображении (будет опубликовано в debug_image)
                     cv2.drawFrameAxes(frame, self.camera_matrix, self.dist_coeffs, rvec, tvec, 0.03)
                     cv2.arrowedLine(frame, (img_center_x, img_center_y), (marker_center_x, marker_center_y), (0, 0, 255), 2, tipLength=0.1)
-                    
+
                     # Вывод текста
-                    cv2.putText(frame, f"3D Dist: {distance_3d:.2f}m", (marker_center_x, marker_center_y - 40), 
+                    cv2.putText(frame, f"3D Dist: {distance_3d:.2f}m", (marker_center_x, marker_center_y - 40),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                    cv2.putText(frame, f"Vector: dx={dx}, dy={dy}", (marker_center_x, marker_center_y - 25), 
+                    cv2.putText(frame, f"Vector: dx={dx}, dy={dy}", (marker_center_x, marker_center_y - 25),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 165, 255), 2)
-                    cv2.putText(frame, f"ID: {ids[i][0]}", (marker_center_x, marker_center_y - 100), 
+                    cv2.putText(frame, f"ID: {ids[i][0]}", (marker_center_x, marker_center_y - 100),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
 
         # Публикуем обработанное изображение
         img_msg = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
         self.image_pub.publish(img_msg)
 
-        # Локальное отображение (опционально)
-        cv2.imshow('Aruco ROS2 Node', frame)
-        cv2.waitKey(1)
+        # Локальное отображение удалено, оставлена только публикация в топик
 
     def destroy_node(self):
         # Освобождаем ресурсы OpenCV
@@ -141,4 +138,3 @@ def main(args=None):
 
 if __name__ == "__main__":
     main()
-
