@@ -7,7 +7,44 @@ import cv2
 import json
 import numpy as np
 from ultralytics import YOLO
-from ultralytics.utils.ops import non_max_suppression, scale_boxes
+
+def nms_boxes(boxes, scores, iou_threshold):
+    """
+    Perform Non-Maximum Suppression (NMS) on bounding boxes.
+    boxes: numpy array of shape (N, 4) where each box is [x1, y1, x2, y2]
+    scores: numpy array of shape (N,)
+    iou_threshold: float
+    Returns indices of boxes to keep.
+    """
+    if len(boxes) == 0:
+        return []
+
+    x1 = boxes[:, 0]
+    y1 = boxes[:, 1]
+    x2 = boxes[:, 2]
+    y2 = boxes[:, 3]
+
+    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+    order = scores.argsort()[::-1]  # descending
+
+    keep = []
+    while order.size > 0:
+        i = order[0]
+        keep.append(i)
+        xx1 = np.maximum(x1[i], x1[order[1:]])
+        yy1 = np.maximum(y1[i], y1[order[1:]])
+        xx2 = np.minimum(x2[i], x2[order[1:]])
+        yy2 = np.minimum(y2[i], y2[order[1:]])
+
+        w = np.maximum(0.0, xx2 - xx1 + 1)
+        h = np.maximum(0.0, yy2 - yy1 + 1)
+        inter = w * h
+        iou = inter / (areas[i] + areas[order[1:]] - inter)
+
+        inds = np.where(iou <= iou_threshold)[0]
+        order = order[inds + 1]
+
+    return keep
 
 class DroneDetector(Node):
     def __init__(self):
@@ -143,23 +180,15 @@ class DroneDetector(Node):
             all_confs = np.array(all_confs)
             all_cls = np.array(all_cls)
             
-            # NMS из ultralytics (можно использовать и свою реализацию)
-            nms_indices = non_max_suppression(
-                np.concatenate([all_boxes, all_confs[:, None], all_cls[:, None]], axis=1),
-                conf_thres=0.25,
-                iou_thres=0.5,
-                max_det=300
-            )
-            if len(nms_indices) > 0:
-                nms_indices = nms_indices[0] if isinstance(nms_indices, list) else nms_indices
-            else:
-                nms_indices = []
+            # Используем самодельный NMS
+            # Можно выполнять NMS отдельно для каждого класса, но для простоты делаем общий NMS по всем классам
+            keep_indices = nms_boxes(all_boxes, all_confs, iou_threshold=0.5)
         else:
-            nms_indices = []
+            keep_indices = []
 
         # Формируем финальный список детекций после NMS и рисуем на исходном изображении
         final_detections = []
-        for idx in nms_indices:
+        for idx in keep_indices:
             det = all_detections[idx]
             x1, y1, x2, y2 = det["bbox"]
             conf = det["confidence"]
