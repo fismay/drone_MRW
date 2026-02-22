@@ -7,6 +7,8 @@ import cv2
 import json
 import numpy as np
 from ultralytics import YOLO
+import os
+from datetime import datetime
 
 def nms_boxes(boxes, scores, iou_threshold):
     """
@@ -74,6 +76,12 @@ class DroneDetector(Node):
         
         # Углы поворота для TTA (в градусах)
         self.angles = [0, 90, 180, 270]
+
+        # Папка для сохранения изображений с детекциями
+        self.save_dir = os.path.expanduser("~/Downloads")
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)  # на случай если папки нет (маловероятно)
+        self.get_logger().info(f"Изображения с детекциями будут сохраняться в: {self.save_dir}")
 
     def rotate_image(self, image, angle):
         """Поворачивает изображение на заданный угол и возвращает повёрнутое изображение и матрицу преобразования."""
@@ -205,6 +213,15 @@ class DroneDetector(Node):
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
             
             self.get_logger().info(f"ОБНАРУЖЕН: {class_name} | Точность: {conf:.2f}")
+
+        # Если есть обнаружения, сохраняем изображение в папку Downloads
+        if final_detections:
+            # Генерируем имя файла с временной меткой
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # до миллисекунд
+            filename = f"detection_{timestamp}.jpg"
+            filepath = os.path.join(self.save_dir, filename)
+            cv2.imwrite(filepath, original_image)
+            self.get_logger().info(f"Изображение сохранено: {filepath}")
 
         # Публикация данных в JSON
         if final_detections:
