@@ -7,8 +7,8 @@ import cv2
 import json
 import numpy as np
 from ultralytics import YOLO
-import os
-from datetime import datetime
+import os  # для работы с директориями
+from datetime import datetime  # для формирования имени файла
 
 def nms_boxes(boxes, scores, iou_threshold):
     """
@@ -77,11 +77,11 @@ class DroneDetector(Node):
         # Углы поворота для TTA (в градусах)
         self.angles = [0, 90, 180, 270]
 
-        # Папка для сохранения изображений с детекциями
-        self.save_dir = os.path.expanduser("~/Downloads")
+        # --- Директория для сохранения изображений с детекциями ---
+        self.save_dir = "detections"
         if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)  # на случай если папки нет (маловероятно)
-        self.get_logger().info(f"Изображения с детекциями будут сохраняться в: {self.save_dir}")
+            os.makedirs(self.save_dir)
+            self.get_logger().info(f"Создана директория для сохранения: {self.save_dir}")
 
     def rotate_image(self, image, angle):
         """Поворачивает изображение на заданный угол и возвращает повёрнутое изображение и матрицу преобразования."""
@@ -214,14 +214,19 @@ class DroneDetector(Node):
             
             self.get_logger().info(f"ОБНАРУЖЕН: {class_name} | Точность: {conf:.2f}")
 
-        # Если есть обнаружения, сохраняем изображение в папку Downloads
-        if final_detections:
-            # Генерируем имя файла с временной меткой
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # до миллисекунд
-            filename = f"detection_{timestamp}.jpg"
-            filepath = os.path.join(self.save_dir, filename)
-            cv2.imwrite(filepath, original_image)
-            self.get_logger().info(f"Изображение сохранено: {filepath}")
+        # --- Сохранение изображения с детекциями в файл ---
+        # Используем время из заголовка сообщения для уникального имени
+        timestamp_sec = msg.header.stamp.sec
+        timestamp_nsec = msg.header.stamp.nanosec
+        # Если время нулевое, используем текущее системное время
+        if timestamp_sec == 0 and timestamp_nsec == 0:
+            now = datetime.now()
+            filename = now.strftime("%Y%m%d_%H%M%S_%f") + ".jpg"
+        else:
+            filename = f"{timestamp_sec}_{timestamp_nsec:09d}.jpg"
+        filepath = os.path.join(self.save_dir, filename)
+        cv2.imwrite(filepath, original_image)
+        self.get_logger().debug(f"Сохранено изображение: {filepath}")
 
         # Публикация данных в JSON
         if final_detections:
